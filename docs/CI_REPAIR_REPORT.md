@@ -10,12 +10,13 @@
 
 ## 1. Root Cause Analysis of CI Failures
 
-### Root Cause 1: Frontend Incompatible Node Version & Lockfile Sync (Pipeline Failure #1)
+### Root Cause 1: Frontend Incompatible Node Version & Lockfile Sync (Pipeline Failure #1 & #3)
 * **Symptom:** GitHub Actions runner threw an error during dependency installation or build.
 * **Root Cause:**
   1. The workflow originally configured `node-version: 18`. Modern Vite 8.x (`vite: ^8.3.6`) explicitly requires **Node.js 20.19+ or Node.js 22+**. Node 18 lacks modern runtime APIs and ECMAScript features required by Vite 8 and Rolldown native bindings.
-  2. `frontend/package.json` lacked an explicit `engines` declaration, allowing obsolete Node engines in CI environments.
-  3. Lockfile synchronization needed re-verification against the latest dependency graph under modern Node LTS.
+  2. In subfolder monorepo layouts (`frontend/`), `actions/setup-node@v4` with `cache: 'npm'` can fail on cache restoration key conflicts or corrupted cross-version npm cache entries.
+  3. `frontend/.npmrc` was added with `engine-strict=false`, `fund=false`, and `audit=false` to ensure resilient installation in containerized CI environments.
+  4. Diagnostic error logging (`cat ~/.npm/_logs/* || true`) was added to the installation step.
 
 ### Root Cause 2: Backend Offline Acceptance Scenario (Pipeline Failure #2)
 * **Symptom:** `python tests/verify_scenarios.py` failed with `<urlopen error [Errno 111] Connection refused>`.
