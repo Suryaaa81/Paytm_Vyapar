@@ -37,17 +37,11 @@ app = FastAPI(
 
 import os
 
-cors_origins_raw = os.getenv("CORS_ORIGINS", "*")
+cors_origins_raw = os.getenv(
+    "CORS_ORIGINS",
+    "https://paytm-vyapar1.vercel.app,https://paytm-vyapar.vercel.app,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+)
 if cors_origins_raw.strip() == "*":
-    # In FastAPI/Starlette CORSMiddleware, allow_origins=["*"] with allow_credentials=True
-    # can trigger Disallowed CORS origin. Use allow_origin_regex or explicit wildcard support.
-    cors_origins = ["*"]
-    allow_all_origins = True
-else:
-    cors_origins = [orig.strip() for orig in cors_origins_raw.split(",") if orig.strip()]
-    allow_all_origins = False
-
-if allow_all_origins:
     app.add_middleware(
         CORSMiddleware,
         allow_origin_regex=r"https?://.*",
@@ -56,9 +50,17 @@ if allow_all_origins:
         allow_headers=["*"],
     )
 else:
+    cors_origins = [orig.strip() for orig in cors_origins_raw.split(",") if orig.strip()]
+    # Ensure Vercel domains are always permitted
+    default_vercel = ["https://paytm-vyapar1.vercel.app", "https://paytm-vyapar.vercel.app"]
+    for d in default_vercel:
+        if d not in cors_origins:
+            cors_origins.append(d)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
+        allow_origin_regex=r"https://.*\.vercel\.app",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
