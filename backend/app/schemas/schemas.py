@@ -105,7 +105,13 @@ class InventoryOut(InventoryBase):
 
 class BulkOfferBase(BaseModel):
     merchant_id: int
-    product_id: int
+    product_id: Optional[int] = None
+    product_name: Optional[str] = None
+    category: Optional[str] = None
+    brand: Optional[str] = None
+    variety: Optional[str] = None
+    pack_size: Optional[str] = None
+    unit: Optional[str] = None
     bulk_price: float
     retail_price: Optional[float] = None
     minimum_quantity: int
@@ -120,6 +126,12 @@ class BulkOfferCreate(BulkOfferBase):
     pass
 
 class BulkOfferUpdate(BaseModel):
+    product_name: Optional[str] = None
+    category: Optional[str] = None
+    brand: Optional[str] = None
+    variety: Optional[str] = None
+    pack_size: Optional[str] = None
+    unit: Optional[str] = None
     bulk_price: Optional[float] = None
     retail_price: Optional[float] = None
     minimum_quantity: Optional[int] = None

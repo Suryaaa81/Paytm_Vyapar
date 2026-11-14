@@ -47,11 +47,35 @@ def create_offer(data: BulkOfferCreate, db: Session = Depends(get_db)):
         if data.minimum_quantity > data.available_stock:
             raise HTTPException(status_code=400, detail="minimum_quantity cannot exceed available_stock")
 
+        # Resolve or create product if product_id is not explicitly provided
+        product_id = data.product_id
+        if not product_id:
+            prod_name = data.product_name or "Custom Bulk Item"
+            existing_product = db.query(Product).filter(Product.name.ilike(prod_name)).first()
+            if existing_product:
+                product_id = existing_product.id
+            else:
+                new_prod = Product(
+                    name=prod_name,
+                    category=data.category or "General",
+                    brand=data.brand or "Local Brand",
+                    variety=data.variety or "",
+                    pack_size=data.pack_size or "Standard Pack",
+                    unit=data.unit or "units",
+                    description=data.description or f"Bulk {prod_name}"
+                )
+                db.add(new_prod)
+                db.flush()
+                product_id = new_prod.id
+
         warning = False
         if data.retail_price and data.bulk_price > data.retail_price:
             warning = True
 
-        offer = BulkOffer(**data.model_dump())
+        offer_dict = data.model_dump(exclude={"product_name", "category", "brand", "variety", "pack_size", "unit"})
+        offer_dict["product_id"] = product_id
+
+        offer = BulkOffer(**offer_dict)
         db.add(offer)
         db.flush()
 
@@ -62,7 +86,7 @@ def create_offer(data: BulkOfferCreate, db: Session = Depends(get_db)):
             action="offer_created",
             target_type="offer",
             target_id=offer.id,
-            details=f"Created bulk offer for product #{data.product_id} at ₹{data.bulk_price} (min {data.minimum_quantity})",
+            details=f"Created bulk offer for product #{product_id} at ₹{data.bulk_price} (min {data.minimum_quantity})",
             result="success"
         )
         db.add(audit)
@@ -217,8 +241,29 @@ def update_offer(offer_id: int, data: BulkOfferUpdate, db: Session = Depends(get
     if not offer:
         raise HTTPException(status_code=404, detail="Offer not found")
     try:
-        for field, value in data.model_dump(exclude_unset=True).items():
-            setattr(offer, field, value)
+        update_dict = data.model_dump(exclude_unset=True)
+
+        # Update product metadata if included
+        product_fields = {"product_name", "category", "brand", "variety", "pack_size", "unit"}
+        prod = offer.product
+        if prod:
+            if "product_name" in update_dict and update_dict["product_name"]:
+                prod.name = update_dict["product_name"]
+            if "category" in update_dict and update_dict["category"]:
+                prod.category = update_dict["category"]
+            if "brand" in update_dict and update_dict["brand"]:
+                prod.brand = update_dict["brand"]
+            if "variety" in update_dict and update_dict["variety"]:
+                prod.variety = update_dict["variety"]
+            if "pack_size" in update_dict and update_dict["pack_size"]:
+                prod.pack_size = update_dict["pack_size"]
+            if "unit" in update_dict and update_dict["unit"]:
+                prod.unit = update_dict["unit"]
+
+        # Update offer fields
+        for field, value in update_dict.items():
+            if field not in product_fields and hasattr(offer, field):
+                setattr(offer, field, value)
 
         audit = AuditLog(
             actor_type="merchant",
@@ -226,7 +271,7 @@ def update_offer(offer_id: int, data: BulkOfferUpdate, db: Session = Depends(get
             action="offer_updated",
             target_type="offer",
             target_id=offer.id,
-            details=f"Updated offer fields: {list(data.model_dump(exclude_unset=True).keys())}",
+            details=f"Updated offer fields: {list(update_dict.keys())}",
             result="success"
         )
         db.add(audit)

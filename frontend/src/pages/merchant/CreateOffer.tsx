@@ -126,7 +126,13 @@ export const CreateOffer: React.FC = () => {
       }
       navigate('/merchant/offers');
     } catch (err: any) {
-      alert(err?.response?.data?.detail || 'Failed to save bulk offer');
+      const errorMsg =
+        typeof err?.response?.data?.detail === 'string'
+          ? err.response.data.detail
+          : Array.isArray(err?.response?.data?.detail)
+          ? err.response.data.detail.map((d: any) => d.msg || JSON.stringify(d)).join(', ')
+          : err?.message || 'Failed to save bulk offer';
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }
