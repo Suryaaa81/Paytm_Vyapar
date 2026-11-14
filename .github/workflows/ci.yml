@@ -13,9 +13,6 @@ jobs:
   frontend:
     name: Frontend Quality & Build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -23,18 +20,21 @@ jobs:
       - name: Setup Node.js 22 LTS
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: 22
 
       - name: Install Frontend Dependencies
+        working-directory: frontend
         run: |
           node -v
           npm -v
-          npm ci || (echo "=== NPM ERROR LOG ===" && (cat ~/.npm/_logs/* || true) && exit 1)
+          npm ci --verbose || (echo "=== NPM ERROR LOG ==="; cat ~/.npm/_logs/*.log; exit 1)
 
       - name: Run Linter
+        working-directory: frontend
         run: npm run lint
 
       - name: Run TypeScript & Production Build
+        working-directory: frontend
         run: npm run build
 
   backend:
