@@ -25,9 +25,14 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: frontend
         run: |
+          set -e
+          echo "=== Node & NPM Info ==="
           node -v
           npm -v
-          npm ci --verbose || (echo "=== NPM ERROR LOG ==="; cat ~/.npm/_logs/*.log; exit 1)
+          pwd
+          ls -la
+          echo "=== Running npm install ==="
+          npm install
 
       - name: Run Linter
         working-directory: frontend
