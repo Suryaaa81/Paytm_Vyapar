@@ -1,0 +1,49 @@
+# Environment & Secrets (NEVER COMMIT REAL CREDENTIALS)
+.env
+.env.*
+!.env.example
+*.local
+
+# Python Virtual Environments & Bytecode
+venv/
+.venv/
+env/
+backend/venv/
+__pycache__/
+*.py[cod]
+*$py.class
+backend/**/__pycache__/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local Databases (Fictional demo DBs, local SQLite files)
+*.db
+*.sqlite
+*.sqlite3
+backend/*.db
+backend/vyapar*.db
+
+# Node & Frontend Build Artifacts
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+build/
+.npm
+.eslintcache
+
+# Logs & Runtime Dumps
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
