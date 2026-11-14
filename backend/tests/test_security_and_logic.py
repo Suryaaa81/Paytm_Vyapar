@@ -15,7 +15,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from fastapi.testclient import TestClient
 from app.main import app
+from app.seed import seed_database
 from app.api.auth import create_demo_token, parse_demo_token, SECRET_KEY
+
+# Ensure database tables and demo seed fixtures are initialized
+seed_database()
 
 client = TestClient(app)
 

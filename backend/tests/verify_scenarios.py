@@ -1,26 +1,43 @@
+import os
 import urllib.request
+import urllib.error
 import json
 
-def post(url, data):
+API_BASE = os.getenv("TEST_API_BASE", "http://localhost:8001").rstrip("/")
+
+def post(path, data):
+    url = f"{API_BASE}{path}" if path.startswith("/") else path
     req = urllib.request.Request(url, data=json.dumps(data).encode(), headers={'Content-Type': 'application/json'})
-    return json.loads(urllib.request.urlopen(req).read())
+    try:
+        return json.loads(urllib.request.urlopen(req).read())
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Connection failed to {url}. Ensure backend server is running on {API_BASE}: {e}")
 
-def get(url):
+def get(path):
+    url = f"{API_BASE}{path}" if path.startswith("/") else path
     req = urllib.request.Request(url)
-    return json.loads(urllib.request.urlopen(req).read())
+    try:
+        return json.loads(urllib.request.urlopen(req).read())
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Connection failed to {url}. Ensure backend server is running on {API_BASE}: {e}")
 
-def patch(url, data):
+def patch(path, data):
+    url = f"{API_BASE}{path}" if path.startswith("/") else path
     req = urllib.request.Request(url, data=json.dumps(data).encode(), headers={'Content-Type': 'application/json'}, method='PATCH')
-    return json.loads(urllib.request.urlopen(req).read())
+    try:
+        return json.loads(urllib.request.urlopen(req).read())
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Connection failed to {url}. Ensure backend server is running on {API_BASE}: {e}")
 
 def run():
     print("=================================================================")
     print("PAYTM VYAPAR-BRAIN: END-TO-END ACCEPTANCE VERIFICATION")
+    print(f"Target Backend API: {API_BASE}")
     print("=================================================================")
 
     # Scenario A: Merchant publishes bulk offer
     print("\n[Scenario A] Merchant publishes a bulk offer:")
-    offer_res = post("http://localhost:8001/api/offers/", {
+    offer_res = post("/api/offers/", {
         "merchant_id": 1,
         "product_id": 1,
         "bulk_price": 1320.0,
@@ -35,7 +52,7 @@ def run():
 
     # Scenario B: Customer books bulk offer
     print("\n[Scenario B] Customer books a bulk offer:")
-    booking_res = post("http://localhost:8001/api/bookings/", {
+    booking_res = post("/api/bookings/", {
         "customer_id": 1,
         "offer_id": offer_res["id"],
         "quantity": 2,
@@ -46,35 +63,35 @@ def run():
 
     # Scenario C: Merchant fulfils order
     print("\n[Scenario C] Merchant order fulfillment state machine:")
-    c1 = patch(f"http://localhost:8001/api/bookings/{booking_id}/status", {"status": "confirmed"})
+    c1 = patch(f"/api/bookings/{booking_id}/status", {"status": "confirmed"})
     print(f" -> Transition 1: {c1['status']} (Confirmed by Sri Vinayaka)")
-    c2 = patch(f"http://localhost:8001/api/bookings/{booking_id}/status", {"status": "ready_for_pickup"})
+    c2 = patch(f"/api/bookings/{booking_id}/status", {"status": "ready_for_pickup"})
     print(f" -> Transition 2: {c2['status']} (Packed & Ready)")
-    c3 = patch(f"http://localhost:8001/api/bookings/{booking_id}/status", {"status": "fulfilled"})
+    c3 = patch(f"/api/bookings/{booking_id}/status", {"status": "fulfilled"})
     print(f" -> Transition 3: {c3['status']} (Order Fulfilled & Closed)")
 
     # Scenario D: Customer loyalty workflow
     print("\n[Scenario D] Customer Loyalty & Inactive Customer Detection:")
-    loyalty_custs = get("http://localhost:8001/api/loyalty/at-risk?merchant_id=1")
+    loyalty_custs = get("/api/loyalty/at-risk?merchant_id=1")
     print(f" -> At-risk shoppers identified: {len(loyalty_custs)}")
     if loyalty_custs:
         target = loyalty_custs[0]
         print(f" -> Flagged Shopper: {target['customer_name']} (Absent for {target['days_since_last_visit']} days, cycle was {target['avg_interval_days']} days)")
         print(f" -> Risk Evidence: {target['risk_evidence']}")
-        draft = post("http://localhost:8001/api/loyalty/campaign-draft", {
+        draft = post("/api/loyalty/campaign-draft", {
             "merchant_id": 1,
             "customer_id": target["customer_id"],
             "language": "telugu"
         })
         print(f" -> Drafted Telugu Outreach: {draft['message_text'][:65]}...")
-        apprv = patch(f"http://localhost:8001/api/loyalty/campaign-draft/{draft['id']}/status", {"status": "approved"})
+        apprv = patch(f"/api/loyalty/campaign-draft/{draft['id']}/status", {"status": "approved"})
         print(f" -> Merchant Approval Status: {apprv['status']}")
-        sim = patch(f"http://localhost:8001/api/loyalty/campaign-draft/{draft['id']}/status", {"status": "simulated_sent"})
+        sim = patch(f"/api/loyalty/campaign-draft/{draft['id']}/status", {"status": "simulated_sent"})
         print(f" -> Simulated Dispatch Status: {sim['status']}")
 
     # Scenario E: Speak Ledger voice accounting
     print("\n[Scenario E] Speak Ledger Voice Accounting Arithmetic:")
-    parse_res = post("http://localhost:8001/api/ledger/parse", {
+    parse_res = post("/api/ledger/parse", {
         "text": "Cash sale 450 rupees, credit sale 200 rupees, shop expense 150 rupees"
     })
     print(f" -> Cash Inflow: ₹{parse_res['cash_total']}")
@@ -86,20 +103,21 @@ def run():
 
     # Scenario F: Security, Auth & RBAC
     print("\n[Scenario F] Security, Auth, RBAC & Store Isolation:")
-    login_res = post("http://localhost:8001/api/auth/login", {
+    login_res = post("/api/auth/login", {
         "email": "merchant@paytmkirana.com",
         "password": "demo123",
         "role": "merchant"
     })
     print(f" -> Merchant Login Success: {login_res['name']} ({login_res['role']})")
     token = login_res["access_token"]
-    me_req = urllib.request.Request("http://localhost:8001/api/auth/me?role=merchant", headers={"Authorization": f"Bearer {token}"})
+    me_url = f"{API_BASE}/api/auth/me?role=merchant"
+    me_req = urllib.request.Request(me_url, headers={"Authorization": f"Bearer {token}"})
     me_res = json.loads(urllib.request.urlopen(me_req).read())
     print(f" -> Authenticated Session Profile: {me_res['store_name']} (Role: {me_res['role']})")
 
     # Pilot Metrics
     print("\n[Pilot Reporting & Audit Trail]:")
-    report = get("http://localhost:8001/api/merchants/metrics/pilot-report")
+    report = get("/api/merchants/metrics/pilot-report")
     print(f" -> Sample Dataset: {report['sample_indicator']}")
     print(f" -> Active Merchants: {report['merchant_metrics']['active_merchants']}")
     print(f" -> Fulfillment Rate: {report['merchant_metrics']['fulfillment_rate_pct']}%")
